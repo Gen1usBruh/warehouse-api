@@ -8,7 +8,7 @@ migratedown:
 connectdb:
 	sudo docker exec -it pg_warehouse psql -U root postgres
 createcontainer:
-	sudo docker run --name postgres_warehouse -p 5433:5432 -e POSTGRES_PASSWORD=secret -e POSTGRES_USER=root -d f2258b53bc9c
+	sudo docker run --name pg_warehouse -p 5433:5432 -e POSTGRES_PASSWORD=secret -e POSTGRES_USER=root -d f2258b53bc9c
 sqlc:
 	sqlc generate
 
