@@ -23,6 +23,17 @@ type ProductRequest struct {
 	Quantity    int32  `json:"quantity" binding:"required,gte=0"`
 }
 
+// CreateProduct godoc
+// @Summary Create a new product
+// @Description Add a new product to the warehouse
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param product body ProductRequest true "Product info"
+// @Success 200 {object} map[string]int "Returns ID of created product"
+// @Failure 400 {object} BaseResponse "Invalid input"
+// @Failure 500 {object} BaseResponse "Server error"
+// @Router /products [post]
 func (h *HandlerConfig) CreateProduct(c *gin.Context) {
 	const op = "internal.rest.product.create"
 	var req ProductRequest
@@ -46,6 +57,17 @@ func (h *HandlerConfig) CreateProduct(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"id": id})
 }
 
+// GetProduct godoc
+// @Summary Get product by ID
+// @Description Retrieve a single product from the warehouse
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param id path int true "Product ID"
+// @Success 200 {object} map[string]db.GetProductByIDRow "Product data"
+// @Failure 400 {object} BaseResponse "Invalid ID"
+// @Failure 404 {object} BaseResponse "Product not found"
+// @Router /products/{id} [get]
 func (h *HandlerConfig) GetProduct(c *gin.Context) {
 	const op = "internal.rest.product.get"
 
@@ -66,6 +88,18 @@ func (h *HandlerConfig) GetProduct(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": product})
 }
 
+// UpdateProduct godoc
+// @Summary Update product by ID
+// @Description Update product information in the warehouse
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param id path int true "Product ID"
+// @Param product body ProductRequest true "Updated product info"
+// @Success 200 {object} BaseResponse "Product updated"
+// @Failure 400 {object} BaseResponse "Invalid input"
+// @Failure 500 {object} BaseResponse "Update failed"
+// @Router /products/{id} [put]
 func (h *HandlerConfig) UpdateProduct(c *gin.Context) {
 	const op = "internal.rest.product.update"
 
@@ -99,6 +133,17 @@ func (h *HandlerConfig) UpdateProduct(c *gin.Context) {
 	c.JSON(http.StatusOK, BaseResponse{Success: true})
 }
 
+// DeleteProduct godoc
+// @Summary Delete product by ID
+// @Description Remove a product from the warehouse
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param id path int true "Product ID"
+// @Success 200 {object} BaseResponse "Product deleted"
+// @Failure 400 {object} BaseResponse "Invalid ID"
+// @Failure 500 {object} BaseResponse "Delete failed"
+// @Router /products/{id} [delete]
 func (h *HandlerConfig) DeleteProduct(c *gin.Context) {
 	const op = "internal.rest.product.delete"
 
@@ -118,6 +163,15 @@ func (h *HandlerConfig) DeleteProduct(c *gin.Context) {
 	c.JSON(http.StatusOK, BaseResponse{Success: true})
 }
 
+// ListProducts godoc
+// @Summary List all products
+// @Description Get a list of all products in the warehouse
+// @Tags products
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string][]db.ListProductsRow "List of products"
+// @Failure 500 {object} BaseResponse "List retrieval failed"
+// @Router /products [get]
 func (h *HandlerConfig) ListProducts(c *gin.Context) {
 	const op = "internal.rest.product.list"
 

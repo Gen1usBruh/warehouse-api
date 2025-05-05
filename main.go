@@ -16,9 +16,13 @@ import (
 	"github.com/Gen1usBruh/warehouse-api/internal/scope"
 	"github.com/Gen1usBruh/warehouse-api/internal/storage/postgres"
 	postgresdb "github.com/Gen1usBruh/warehouse-api/internal/storage/postgres/sqlc"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+        log.Fatalf("No .env file found: %v\n", err)
+    }
 	conf, err := config.New()
 	if err != nil {
 		log.Fatalf("Could not create config: %v\n", err)

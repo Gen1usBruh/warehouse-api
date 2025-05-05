@@ -11,11 +11,9 @@ type App struct {
 }
 
 func NewApp(server config.Server, restServer http.Handler) (*App, error) {
-	sm := http.NewServeMux()
-
 	httpServer := http.Server{
 		Addr:         server.Address,
-		Handler:      sm,
+		Handler:      restServer,
 		ReadTimeout:  server.Timeout,
 		WriteTimeout: server.Timeout,
 		IdleTimeout:  server.IdleTimeout,

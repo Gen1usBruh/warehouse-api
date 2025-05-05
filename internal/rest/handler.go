@@ -3,6 +3,7 @@ package rest
 import (
 	"github.com/Gen1usBruh/warehouse-api/internal/scope"
 
+	_ "github.com/Gen1usBruh/warehouse-api/docs"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
