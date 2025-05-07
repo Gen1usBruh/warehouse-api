@@ -16,6 +16,8 @@ import (
 	"github.com/Gen1usBruh/warehouse-api/internal/scope"
 	"github.com/Gen1usBruh/warehouse-api/internal/storage/postgres"
 	postgresdb "github.com/Gen1usBruh/warehouse-api/internal/storage/postgres/sqlc"
+	"github.com/Gen1usBruh/warehouse-api/internal/storage/postgres/repo"
+	"github.com/Gen1usBruh/warehouse-api/internal/usecase"
 	"github.com/joho/godotenv"
 )
 
@@ -33,10 +35,14 @@ func main() {
 		log.Fatalf("Could not connect to postgres: %v\n", err)
 	}
 
+	qConn := postgresdb.New(conn)
+	productRepo := repo.NewProductRepo(qConn)
+	productUC := usecase.NewProductUseCase(productRepo)
+
 	restServer := rest.NewHandler(rest.HandlerConfig{
 		Dep: &scope.Dependencies{
 			Sl: sl.SetupLogger(&conf.Logger),
-			Db: postgresdb.New(conn),
+			Product: productUC,
 		},
 	})
 

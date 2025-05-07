@@ -3,10 +3,10 @@ package scope
 import (
 	"log/slog"
 
-	postgresdb "github.com/Gen1usBruh/warehouse-api/internal/storage/postgres/sqlc"
+	usecase "github.com/Gen1usBruh/warehouse-api/internal/usecase"
 )
 
 type Dependencies struct {
-	Sl *slog.Logger
-	Db *postgresdb.Queries
+	Sl      *slog.Logger
+	Product *usecase.ProductUseCase
 }
