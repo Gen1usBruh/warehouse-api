@@ -4,57 +4,49 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
 
-	db "github.com/Gen1usBruh/warehouse-api/internal/storage/postgres/sqlc"
+	"github.com/Gen1usBruh/warehouse-api/internal/domain/product"
+	"github.com/Gen1usBruh/warehouse-api/internal/scope"
+	"github.com/Gen1usBruh/warehouse-api/internal/usecase"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
 
-type mockDB struct {
-	products map[int32]db.Product
+type mockProductUseCase struct {
+	products map[int32]product.Product
 	nextID   int32
 }
 
-func (m *mockDB) CreateProduct(ctx context.Context, arg db.CreateProductParams) (int32, error) {
+func (m *mockProductUseCase) Create(ctx context.Context, p product.Product) (int32, error) {
 	m.nextID++
-	p := db.Product{
-		ID:          m.nextID,
-		Name:        arg.Name,
-		Description: arg.Description,
-		Price:       arg.Price,
-		Quantity:    arg.Quantity,
-	}
+	p.ID = m.nextID
 	m.products[p.ID] = p
 	return p.ID, nil
 }
 
-func (m *mockDB) GetProductByID(ctx context.Context, id int32) (db.Product, error) {
+func (m *mockProductUseCase) GetByID(ctx context.Context, id int32) (product.Product, error) {
 	p, ok := m.products[id]
 	if !ok {
-		return db.Product{}, errors.New("not found")
+		return product.Product{}, errors.New("not found")
 	}
 	return p, nil
 }
 
-func (m *mockDB) UpdateProduct(ctx context.Context, arg db.UpdateProductParams) error {
-	if _, ok := m.products[arg.ID]; !ok {
+func (m *mockProductUseCase) Update(ctx context.Context, p product.Product) error {
+	if _, ok := m.products[p.ID]; !ok {
 		return errors.New("not found")
 	}
-	m.products[arg.ID] = db.Product{
-		ID:          arg.ID,
-		Name:        arg.Name,
-		Description: arg.Description,
-		Price:       arg.Price,
-		Quantity:    arg.Quantity,
-	}
+	m.products[p.ID] = p
 	return nil
 }
 
-func (m *mockDB) DeleteProduct(ctx context.Context, id int32) error {
+func (m *mockProductUseCase) Delete(ctx context.Context, id int32) error {
 	if _, ok := m.products[id]; !ok {
 		return errors.New("not found")
 	}
@@ -62,26 +54,44 @@ func (m *mockDB) DeleteProduct(ctx context.Context, id int32) error {
 	return nil
 }
 
-func (m *mockDB) ListProducts(ctx context.Context) ([]db.Product, error) {
-	var list []db.Product
+func (m *mockProductUseCase) List(ctx context.Context) ([]product.Product, error) {
+	var list []product.Product
 	for _, p := range m.products {
 		list = append(list, p)
 	}
 	return list, nil
 }
 
-// Stub logger
 type stubLogger struct{}
 
 func (s *stubLogger) Error(msg string, fields ...any) {}
 
-func setupHandler() *HandlerConfig {
-	return &HandlerConfig{
-		Dep: Deps{
-			Db: &mockDB{products: map[int32]db.Product{}, nextID: 0},
-			Sl: &stubLogger{},
+func setupHandlerWithMock() (*gin.Engine, *mockProductUseCase) {
+	mockUC := &mockProductUseCase{
+		products: make(map[int32]product.Product),
+	}
+	useCase := usecase.NewProductUseCase(mockUC)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	cfg := HandlerConfig{
+		Dep: &scope.Dependencies{
+			Product: useCase,
+			Sl:      logger,
 		},
 	}
+
+	return setupRouter(&cfg), mockUC
+}
+
+func setupRouter(h *HandlerConfig) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.POST("/products", h.CreateProduct)
+	router.GET("/products/:id", h.GetProduct)
+	router.PUT("/products/:id", h.UpdateProduct)
+	router.DELETE("/products/:id", h.DeleteProduct)
+	router.GET("/products", h.ListProducts)
+	return router
 }
 
 func performRequest(r http.Handler, method, path string, body []byte) *httptest.ResponseRecorder {
@@ -93,49 +103,72 @@ func performRequest(r http.Handler, method, path string, body []byte) *httptest.
 }
 
 func TestCreateProduct(t *testing.T) {
-	h := setupHandler()
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-	router.POST("/products", h.CreateProduct)
+	router, _ := setupHandlerWithMock()
 
 	body := []byte(`{
 		"name": "Test Product",
-		"description": "Some description",
-		"price": 19,
-		"quantity": 5
+		"description": "Valid description",
+		"price": 5000,
+		"quantity": 10
 	}`)
-	w := performRequest(router, "POST", "/products", body)
 
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), `"id":`)
+	resp := performRequest(router, "POST", "/products", body)
+
+	assert.Equal(t, http.StatusOK, resp.Code)
+	assert.Contains(t, resp.Body.String(), `"id":`)
+}
+
+func TestCreateProduct_InvalidJSON(t *testing.T) {
+	router, _ := setupHandlerWithMock()
+
+	body := []byte(`{"description":"Missing name","price":10,"quantity":1}`)
+
+	resp := performRequest(router, "POST", "/products", body)
+
+	assert.Equal(t, http.StatusBadRequest, resp.Code)
+	assert.Contains(t, resp.Body.String(), "'Name' failed on the 'required'")
+}
+
+func TestCreateProduct_BusinessValidation(t *testing.T) {
+	router, _ := setupHandlerWithMock()
+
+	tests := []struct {
+		name     string
+		body     string
+		expected string
+	}{
+		{"Price too high", `{"name":"Valid","description":"Desc","price":20000,"quantity":1}`, "price exceeds"},
+		{"Reserved name", `{"name":"Sarkor","description":"Desc","price":10,"quantity":1}`, "name is reserved"},
+		{"Quantity too high", `{"name":"Valid","description":"Desc","price":10,"quantity":1001}`, "quantity exceeds"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp := performRequest(router, "POST", "/products", []byte(tt.body))
+			assert.Equal(t, http.StatusBadRequest, resp.Code)
+			assert.Contains(t, resp.Body.String(), tt.expected)
+		})
+	}
 }
 
 func TestGetProduct(t *testing.T) {
-	h := setupHandler()
-	db := h.Dep.Db.(*mockDB)
-	id, _ := db.CreateProduct(context.TODO(), db.CreateProductParams{
-		Name: "Test", Description: "desc", Price: 12, Quantity: 1,
+	router, mock := setupHandlerWithMock()
+
+	id, _ := mock.Create(context.TODO(), product.Product{
+		Name: "Iphone", Description: "Smartphone", Price: 12, Quantity: 1,
 	})
 
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-	router.GET("/products/:id", h.GetProduct)
-
-	w := performRequest(router, "GET", "/products/"+strconv.Itoa(int(id)), nil)
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), `"name":"Test"`)
+	resp := performRequest(router, "GET", "/products/"+itoa(id), nil)
+	assert.Equal(t, http.StatusOK, resp.Code)
+	assert.Contains(t, resp.Body.String(), `"name":"Iphone"`)
 }
 
 func TestUpdateProduct(t *testing.T) {
-	h := setupHandler()
-	db := h.Dep.Db.(*mockDB)
-	id, _ := db.CreateProduct(context.TODO(), db.CreateProductParams{
+	router, mock := setupHandlerWithMock()
+
+	id, _ := mock.Create(context.TODO(), product.Product{
 		Name: "Old", Description: "desc", Price: 10, Quantity: 1,
 	})
-
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-	router.PUT("/products/:id", h.UpdateProduct)
 
 	body := []byte(`{
 		"name": "New Name",
@@ -143,41 +176,33 @@ func TestUpdateProduct(t *testing.T) {
 		"price": 22,
 		"quantity": 3
 	}`)
-	w := performRequest(router, "PUT", "/products/"+strconv.Itoa(int(id)), body)
-	assert.Equal(t, http.StatusOK, w.Code)
+	resp := performRequest(router, "PUT", "/products/"+itoa(id), body)
+	assert.Equal(t, http.StatusOK, resp.Code)
 }
 
 func TestDeleteProduct(t *testing.T) {
-	h := setupHandler()
-	db := h.Dep.Db.(*mockDB)
-	id, _ := db.CreateProduct(context.TODO(), db.CreateProductParams{
-		Name: "Del", Description: "desc", Price: 10, Quantity: 1,
+	router, mock := setupHandlerWithMock()
+
+	id, _ := mock.Create(context.TODO(), product.Product{
+		Name: "Olcha", Description: "qizil", Price: 10, Quantity: 1,
 	})
 
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-	router.DELETE("/products/:id", h.DeleteProduct)
-
-	w := performRequest(router, "DELETE", "/products/"+strconv.Itoa(int(id)), nil)
-	assert.Equal(t, http.StatusOK, w.Code)
+	resp := performRequest(router, "DELETE", "/products/"+itoa(id), nil)
+	assert.Equal(t, http.StatusOK, resp.Code)
 }
 
 func TestListProducts(t *testing.T) {
-	h := setupHandler()
-	db := h.Dep.Db.(*mockDB)
-	_, _ = db.CreateProduct(context.TODO(), db.CreateProductParams{
-		Name: "P1", Description: "desc", Price: 10, Quantity: 1,
-	})
-	_, _ = db.CreateProduct(context.TODO(), db.CreateProductParams{
-		Name: "P2", Description: "desc", Price: 20, Quantity: 2,
-	})
+	router, mock := setupHandlerWithMock()
 
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-	router.GET("/products", h.ListProducts)
+	mock.Create(context.TODO(), product.Product{Name: "klubnika", Description: "meva", Price: 10, Quantity: 1})
+	mock.Create(context.TODO(), product.Product{Name: "pomidor", Description: "sabzavot", Price: 20, Quantity: 2})
 
-	w := performRequest(router, "GET", "/products", nil)
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), `"name":"P1"`)
-	assert.Contains(t, w.Body.String(), `"name":"P2"`)
+	resp := performRequest(router, "GET", "/products", nil)
+	assert.Equal(t, http.StatusOK, resp.Code)
+	assert.Contains(t, resp.Body.String(), `"name":"klubnika"`)
+	assert.Contains(t, resp.Body.String(), `"name":"pomidor"`)
+}
+
+func itoa(i int32) string {
+	return strconv.Itoa(int(i))
 }

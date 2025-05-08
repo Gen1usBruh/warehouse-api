@@ -17,7 +17,7 @@ const docTemplate = `{
     "paths": {
         "/products": {
             "get": {
-                "description": "Get a list of all products in the warehouse",
+                "description": "Get  a list of all products in the warehouse",
                 "consumes": [
                     "application/json"
                 ],
@@ -33,12 +33,7 @@ const docTemplate = `{
                         "description": "List of products",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "array",
-                                "items": {
-                                    "$ref": "#/definitions/postgresdb.ListProductsRow"
-                                }
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "500": {
@@ -83,7 +78,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid input",
+                        "description": "Invalid input or business rule failed",
                         "schema": {
                             "$ref": "#/definitions/rest.BaseResponse"
                         }
@@ -124,9 +119,7 @@ const docTemplate = `{
                         "description": "Product data",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "$ref": "#/definitions/postgresdb.GetProductByIDRow"
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
@@ -175,13 +168,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Product updated",
+                        "description": "Success",
                         "schema": {
                             "$ref": "#/definitions/rest.BaseResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid input",
+                        "description": "Invalid input or business rule failed",
                         "schema": {
                             "$ref": "#/definitions/rest.BaseResponse"
                         }
@@ -217,7 +210,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Product deleted",
+                        "description": "Success",
                         "schema": {
                             "$ref": "#/definitions/rest.BaseResponse"
                         }
@@ -239,46 +232,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "postgresdb.GetProductByIDRow": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "integer"
-                },
-                "quantity": {
-                    "type": "integer"
-                }
-            }
-        },
-        "postgresdb.ListProductsRow": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "integer"
-                },
-                "quantity": {
-                    "type": "integer"
-                }
-            }
-        },
         "rest.BaseResponse": {
             "type": "object",
             "properties": {

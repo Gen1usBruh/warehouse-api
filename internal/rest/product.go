@@ -40,7 +40,7 @@ func (h *HandlerConfig) CreateProduct(c *gin.Context) {
 
 	var req ProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, BaseResponse{Error: "Invalid input", ErrorCode: 400})
+		c.JSON(http.StatusBadRequest, BaseResponse{Error: err.Error(), ErrorCode: 400})
 		return
 	}
 
@@ -56,7 +56,7 @@ func (h *HandlerConfig) CreateProduct(c *gin.Context) {
 		if usecase.IsBusinessError(err) {
 			code = http.StatusBadRequest
 		}
-		c.JSON(code, BaseResponse{Error: "Failed to create product", ErrorCode: code})
+		c.JSON(code, BaseResponse{Error: err.Error(), ErrorCode: code})
 		return
 	}
 

@@ -1,30 +1,4 @@
 definitions:
-  postgresdb.GetProductByIDRow:
-    properties:
-      description:
-        type: string
-      id:
-        type: integer
-      name:
-        type: string
-      price:
-        type: integer
-      quantity:
-        type: integer
-    type: object
-  postgresdb.ListProductsRow:
-    properties:
-      description:
-        type: string
-      id:
-        type: integer
-      name:
-        type: string
-      price:
-        type: integer
-      quantity:
-        type: integer
-    type: object
   rest.BaseResponse:
     properties:
       error:
@@ -61,17 +35,14 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get a list of all products in the warehouse
+      description: Get  a list of all products in the warehouse
       produces:
       - application/json
       responses:
         "200":
           description: List of products
           schema:
-            additionalProperties:
-              items:
-                $ref: '#/definitions/postgresdb.ListProductsRow'
-              type: array
+            additionalProperties: true
             type: object
         "500":
           description: List retrieval failed
@@ -101,7 +72,7 @@ paths:
               type: integer
             type: object
         "400":
-          description: Invalid input
+          description: Invalid input or business rule failed
           schema:
             $ref: '#/definitions/rest.BaseResponse'
         "500":
@@ -126,7 +97,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Product deleted
+          description: Success
           schema:
             $ref: '#/definitions/rest.BaseResponse'
         "400":
@@ -156,8 +127,7 @@ paths:
         "200":
           description: Product data
           schema:
-            additionalProperties:
-              $ref: '#/definitions/postgresdb.GetProductByIDRow'
+            additionalProperties: true
             type: object
         "400":
           description: Invalid ID
@@ -190,11 +160,11 @@ paths:
       - application/json
       responses:
         "200":
-          description: Product updated
+          description: Success
           schema:
             $ref: '#/definitions/rest.BaseResponse'
         "400":
-          description: Invalid input
+          description: Invalid input or business rule failed
           schema:
             $ref: '#/definitions/rest.BaseResponse'
         "500":

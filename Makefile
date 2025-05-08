@@ -11,5 +11,7 @@ createcontainer:
 	sudo docker run --name pg_warehouse -p 5433:5432 -e POSTGRES_PASSWORD=secret -e POSTGRES_USER=root -d f2258b53bc9c
 sqlc:
 	sqlc generate
+test:
+	go test ./internal/rest
 
-.PHONY: connectdb createcontainer migrateup migratedown migrateinit sqlc
+.PHONY: connectdb createcontainer migrateup migratedown migrateinit sqlc test
