@@ -12,7 +12,7 @@ This is a simple Warehouse CRUD (Create, Read, Update, Delete) application built
 ## Prerequisites
 - Go 1.20+
 - Sqlc & migrate programs installed
-- PostgreSQL (if running locally, otherwise Docker will handle it)
+- PostgreSQL:15.8 container in Docker
 
 ## Installation & Setup
 1. **Clone the repository**:
